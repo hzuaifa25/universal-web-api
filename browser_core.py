@@ -5,6 +5,8 @@ browser_core.py - 浏览器自动化核心模块
 - 浏览器连接管理
 - 工作流执行
 - 元素查找与操作
+
+重构说明（v2）：
 - 移除内部锁管理，由 RequestManager 统一控制
 - 接收外部的取消信号检查器
 - 增强取消响应速度
@@ -29,11 +31,11 @@ from DrissionPage import ChromiumPage
 class BrowserConstants:
     """浏览器相关常量"""
     
-    # ===== 配置缓存 =====
+    # ===== 新增：配置缓存 =====
     _config = None
     _config_file = Path("browser_config.json")
     
-    # ===== 默认值字典 =====
+    # ===== 新增：默认值字典 =====
     _DEFAULTS = {
         'DEFAULT_PORT': 9222,
         'CONNECTION_TIMEOUT': 10,
@@ -79,24 +81,24 @@ class BrowserConstants:
     
     # 流式监控（优化：更短间隔，更快响应取消）
     STREAM_CHECK_INTERVAL_MIN = 0.1
-    STREAM_CHECK_INTERVAL_MAX = 1.0          
-    STREAM_CHECK_INTERVAL_DEFAULT = 0.3   
+    STREAM_CHECK_INTERVAL_MAX = 1.0          # ✅ 从 0.5 增加到 1.0 秒
+    STREAM_CHECK_INTERVAL_DEFAULT = 0.3      # ✅ 从 0.2 增加到 0.3 秒
     
-    STREAM_SILENCE_THRESHOLD = 8.0           
+    STREAM_SILENCE_THRESHOLD = 8.0           # ✅ 从 3.5 增加到 8 秒
     # 关键：慢速 AI 两次更新可能间隔 5-10 秒
     
     STREAM_MAX_TIMEOUT = 600
-    STREAM_INITIAL_WAIT = 180          
+    STREAM_INITIAL_WAIT = 180                # ✅ 从 120 增加到 180 秒（3分钟）
     
     # 流式监控增强配置
     STREAM_RERENDER_WAIT = 0.5
     STREAM_CONTENT_SHRINK_TOLERANCE = 3
     STREAM_MIN_VALID_LENGTH = 10
     
-    STREAM_STABLE_COUNT_THRESHOLD = 8      
+    STREAM_STABLE_COUNT_THRESHOLD = 8        # ✅ 从 4 增加到 8 次
     # 需要连续 8 次检查不变才判定稳定
     
-    STREAM_SILENCE_THRESHOLD_FALLBACK = 12   
+    STREAM_SILENCE_THRESHOLD_FALLBACK = 12   # ✅ 从 6 增加到 12 秒
     
     # 输入验证
     MAX_MESSAGE_LENGTH = 100000
@@ -1267,6 +1269,8 @@ class WorkflowExecutor:
 class BrowserCore:
     """
     浏览器核心类 - 单例模式
+    
+    重构说明：
     - 移除内部锁管理，由 RequestManager 统一控制
     - 接收外部的取消信号检查器
     """
