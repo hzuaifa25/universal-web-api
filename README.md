@@ -27,7 +27,8 @@ Universal Web-to-API 是一个工具，能够将任意 AI 聊天网站（如 Cha
 
 - Python 3.8+
 - Chrome 浏览器（推荐最新版）
-- Windows / macOS / Linux
+- Windows
+- Linus/macOS 未测试
 
 ### Windows 一键启动
 
@@ -48,7 +49,7 @@ Universal Web-to-API 是一个工具，能够将任意 AI 聊天网站（如 Cha
 ### 首次使用
 
 1. 在启动的 Chrome 浏览器中打开目标 AI 网站（如 https://chatgpt.com ）
-2. **完成登录**（重要！）
+2. **完成登录**（重要！），同时务必先手动发送一次请求，确保页面内存在ai回复内容。
 3. 发送 API 请求，服务会自动识别页面结构
 
 ```bash
