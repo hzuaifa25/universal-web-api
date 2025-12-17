@@ -348,7 +348,7 @@ class SelectorValidator:
                     fixed[key] = fallback
             else:
                 if re.search(r'\._[a-f0-9]{5,}|^\.[a-f0-9]{6,}', selector):
-                    logger.info(fℹ️  哈希类名 [{key}]: {selector} (可能不稳定，但保留)")
+                    logger.info(f"ℹ️  哈希类名 [{key}]: {selector} (可能不稳定，但保留)")
                 
                 fixed[key] = selector
         
@@ -775,4 +775,5 @@ if __name__ == "__main__":
             print(f"文件操作失败: {e}")
             
     except Exception as e:
+
         print(f"Error: {e}")
