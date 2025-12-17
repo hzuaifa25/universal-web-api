@@ -282,6 +282,14 @@ main.py (FastAPI)
 - [Tailwind CSS](https://tailwindcss.com/) - CSS 框架
 - [Vue.js](https://vuejs.org/) - JavaScript 框架
 
+## 后续开发
+
+- 1.增加并发能力
+  
+- 2.将操作分为：
+| **浏览器自动化模式** | 防护严格的网站<br>（ChatGPT、Claude、Grok 等） | • 完全模拟真实用户<br>• 可绕过大部分检测<br>• 无需分析请求结构 | • 资源占用高<br>• 响应速度较慢<br>• 依赖 Chrome 浏览器 | ✅ **当前支持** |
+| **Cookie 模拟模式** | 防护宽松的网站<br>（部分开源 AI、本地部署等） | • 资源占用低<br>• 响应速度快<br>• 无需浏览器 | • 需要分析请求结构<br>• 容易被检测<br>• Cookie 需定期更新 | 🚧 **规划中** |
+- 修复bug
 ## 免责声明
 
 **请在使用本项目前仔细阅读以下声明**
