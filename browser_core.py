@@ -6,10 +6,11 @@ browser_core.py - 浏览器自动化核心模块
 - 工作流执行
 - 元素查找与操作
 
-重构说明（v2）：
-- 移除内部锁管理，由 RequestManager 统一控制
-- 接收外部的取消信号检查器
-- 增强取消响应速度
+重构说明（v4）：
+- 彻底解决极速AI回复的180s延迟问题
+- 引入两阶段 baseline 机制（instant + user）
+- 明确的状态机：等待用户消息 -> 等待AI开始 -> 正常输出
+- 完全不依赖 pre-send 记录（避免路径依赖）
 """
 
 import os
@@ -49,21 +50,24 @@ class BrowserConstants:
         'STREAM_CHECK_INTERVAL_MIN': 0.1,
         'STREAM_CHECK_INTERVAL_MAX': 1.0,
         'STREAM_CHECK_INTERVAL_DEFAULT': 0.3,
-        'STREAM_SILENCE_THRESHOLD': 8.0,
+        'STREAM_SILENCE_THRESHOLD': 3.0,
         'STREAM_MAX_TIMEOUT': 600,
         'STREAM_INITIAL_WAIT': 180,
         'STREAM_RERENDER_WAIT': 0.5,
         'STREAM_CONTENT_SHRINK_TOLERANCE': 3,
         'STREAM_MIN_VALID_LENGTH': 10,
-        'STREAM_STABLE_COUNT_THRESHOLD': 8,
-        'STREAM_SILENCE_THRESHOLD_FALLBACK': 12,
+        'STREAM_STABLE_COUNT_THRESHOLD': 5,
+        'STREAM_SILENCE_THRESHOLD_FALLBACK': 6.0,
         'MAX_MESSAGE_LENGTH': 100000,
         'MAX_MESSAGES_COUNT': 100,
         'STREAM_INITIAL_ELEMENT_WAIT': 10,
         'STREAM_MAX_ABNORMAL_COUNT': 5,
         'STREAM_MAX_ELEMENT_MISSING': 10,
         'STREAM_CONTENT_SHRINK_THRESHOLD': 0.3,
+        'STREAM_USER_MSG_WAIT': 1.5,  # v4 新增：等待用户消息上屏的最大时间
+        'STREAM_PRE_BASELINE_DELAY': 0.3,  # v4 新增：instant baseline 后的延迟
     }
+    
     # 连接配置
     DEFAULT_PORT = 9222
     CONNECTION_TIMEOUT = 10
@@ -79,26 +83,22 @@ class BrowserConstants:
     FALLBACK_ELEMENT_TIMEOUT = 1
     ELEMENT_CACHE_MAX_AGE = 5.0
     
-    # 流式监控（优化：更短间隔，更快响应取消）
+    # 流式监控
     STREAM_CHECK_INTERVAL_MIN = 0.1
-    STREAM_CHECK_INTERVAL_MAX = 1.0          # ✅ 从 0.5 增加到 1.0 秒
-    STREAM_CHECK_INTERVAL_DEFAULT = 0.3      # ✅ 从 0.2 增加到 0.3 秒
+    STREAM_CHECK_INTERVAL_MAX = 1.0
+    STREAM_CHECK_INTERVAL_DEFAULT = 0.3
     
-    STREAM_SILENCE_THRESHOLD = 8.0           # ✅ 从 3.5 增加到 8 秒
-    # 关键：慢速 AI 两次更新可能间隔 5-10 秒
-    
+    STREAM_SILENCE_THRESHOLD = 3.0
     STREAM_MAX_TIMEOUT = 600
-    STREAM_INITIAL_WAIT = 180                # ✅ 从 120 增加到 180 秒（3分钟）
+    STREAM_INITIAL_WAIT = 180  # 保持高值以兼容长思考AI
     
     # 流式监控增强配置
     STREAM_RERENDER_WAIT = 0.5
     STREAM_CONTENT_SHRINK_TOLERANCE = 3
     STREAM_MIN_VALID_LENGTH = 10
     
-    STREAM_STABLE_COUNT_THRESHOLD = 8        # ✅ 从 4 增加到 8 次
-    # 需要连续 8 次检查不变才判定稳定
-    
-    STREAM_SILENCE_THRESHOLD_FALLBACK = 12   # ✅ 从 6 增加到 12 秒
+    STREAM_STABLE_COUNT_THRESHOLD = 5
+    STREAM_SILENCE_THRESHOLD_FALLBACK = 6.0
     
     # 输入验证
     MAX_MESSAGE_LENGTH = 100000
@@ -109,6 +109,10 @@ class BrowserConstants:
     STREAM_MAX_ABNORMAL_COUNT = 5
     STREAM_MAX_ELEMENT_MISSING = 10
     STREAM_CONTENT_SHRINK_THRESHOLD = 0.3
+    
+    # v4 新增：两阶段 baseline 配置
+    STREAM_USER_MSG_WAIT = 1.5  # 等待用户消息上屏的最大时间
+    STREAM_PRE_BASELINE_DELAY = 0.3  # instant baseline 后的延迟
 
     @classmethod
     def _load_config(cls):
@@ -143,6 +147,8 @@ class BrowserConstants:
         """重新加载配置（热重载）"""
         cls._config = None
         cls._load_config()
+
+
 # ================= 安全日志配置 =================
 
 class SecureLogger:
@@ -548,7 +554,7 @@ class ElementFinder:
 # ================= 流式上下文 =================
 
 class StreamContext:
-    """流式监控上下文"""
+    """流式监控上下文（v4 优化版）"""
     
     def __init__(self):
         self.max_seen_text = ""
@@ -560,7 +566,26 @@ class StreamContext:
         self.active_turn_baseline_len = 0
         self.sent_text_hash = None
         self.content_version = 0
-    
+        
+        # v4 新增：两阶段 baseline
+        self.instant_baseline = None  # 进入监控瞬间的快照
+        self.user_baseline = None     # 等待用户消息上屏后的快照
+        
+        # v4 新增：状态标记
+        self.content_ever_changed = False  # 是否曾经产出过内容
+        self.user_msg_confirmed = False    # 用户消息是否已确认上屏
+        self.output_target_anchor = None      # 当前锁定的输出目标节点锚点
+        self.output_target_count = 0          # 锁定时的节点总数
+        self.pending_new_anchor = None        # 候选的新节点锚点（用于确认）
+        self.pending_new_anchor_seen = 0      # 候选新节点连续出现次数
+    def reset_for_new_target(self):
+        """切换到新目标节点时重置状态"""
+        self.max_seen_text = ""
+        self.sent_content_length = 0
+        self.stable_text_count = 0
+        self.last_stable_text = ""
+        self.active_turn_baseline_len = 0
+        self.content_ever_changed = False
     def calculate_diff(self, current_text: str) -> tuple:
         if not current_text:
             return "", False, None
@@ -699,7 +724,7 @@ class TabManager:
 # ================= 工作流执行器 =================
 
 class WorkflowExecutor:
-    """工作流执行器"""
+    """工作流执行器（v4 优化版）"""
     
     def __init__(self, tab, stealth_mode: bool = False, 
                  should_stop_checker: Callable[[], bool] = None):
@@ -708,7 +733,7 @@ class WorkflowExecutor:
         self.finder = ElementFinder(tab)
         self.formatter = SSEFormatter()
         
-        # 取消检查器（由外部传入，通常是 RequestContext.should_stop）
+        # 取消检查器（由外部传入）
         self._should_stop = should_stop_checker or (lambda: False)
         
         self._stream_ctx: Optional[StreamContext] = None
@@ -716,7 +741,7 @@ class WorkflowExecutor:
         self._generating_checker: Optional[GeneratingStatusCache] = None
     
     def _check_cancelled(self) -> bool:
-        """检查是否被取消（统一检查点）"""
+        """检查是否被取消"""
         return self._should_stop()
     
     def _smart_delay(self, min_sec: float = None, max_sec: float = None):
@@ -727,10 +752,9 @@ class WorkflowExecutor:
         min_sec = min_sec or BrowserConstants.STEALTH_DELAY_MIN
         max_sec = max_sec or BrowserConstants.STEALTH_DELAY_MAX
         
-        # 分段 sleep，更快响应取消
         total_delay = random.uniform(min_sec, max_sec)
         elapsed = 0
-        step = 0.05  # 每 50ms 检查一次
+        step = 0.05
         
         while elapsed < total_delay:
             if self._check_cancelled():
@@ -744,7 +768,6 @@ class WorkflowExecutor:
                      context: Dict = None) -> Generator[str, None, None]:
         """执行单个步骤"""
         
-        # 每步开始检查取消
         if self._check_cancelled():
             logger.debug(f"步骤 {action} 跳过（已取消）")
             return
@@ -753,7 +776,6 @@ class WorkflowExecutor:
         
         try:
             if action == "WAIT":
-                # 可中断的等待
                 wait_time = float(value or 0.5)
                 elapsed = 0
                 while elapsed < wait_time:
@@ -884,18 +906,15 @@ class WorkflowExecutor:
                 
                     function processNode(node) {
                         if (node.nodeType === Node.TEXT_NODE) {
-                            // 文本节点：直接获取原始值
                             text += node.nodeValue;
                         } else if (node.nodeType === Node.ELEMENT_NODE) {
                             const tagName = node.tagName.toLowerCase();
                             const style = window.getComputedStyle(node);
                         
-                            // 跳过隐藏元素
                             if (style.display === 'none' || style.visibility === 'hidden') {
                                 return;
                             }
                         
-                            // 块级元素前添加换行
                             const blockTags = ['div', 'p', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
                                               'li', 'tr', 'blockquote', 'pre', 'section', 'article'];
                         
@@ -911,12 +930,10 @@ class WorkflowExecutor:
                                 text += '\\n';
                             }
                         
-                            // 递归处理子节点
                             for (const child of node.childNodes) {
                                 processNode(child);
                             }
                         
-                            // 块级元素后添加换行
                             if (isBlock && text && !text.endsWith('\\n')) {
                                 text += '\\n';
                             }
@@ -931,15 +948,13 @@ class WorkflowExecutor:
             """)
         
             if text:
-                # 清理多余的连续换行，但保留单个换行
                 import re
                 text = re.sub(r'\n{3,}', '\n\n', str(text))
                 return text.strip()
             
-        except Exception as e:
+        except Exception:
             pass
 
-        # 降级方案
         try:
             if hasattr(ele, 'text') and ele.text:
                 return str(ele.text)
@@ -949,6 +964,7 @@ class WorkflowExecutor:
         return ""
 
     def _get_message_anchor(self, element) -> str:
+        """获取消息元素的唯一标识"""
         if not element:
             return ""
         
@@ -978,6 +994,7 @@ class WorkflowExecutor:
             return ""
 
     def _get_latest_message_snapshot(self, selector: str) -> dict:
+        """获取最新消息快照"""
         result = {
             'groups_count': 0,
             'anchor': None,
@@ -987,7 +1004,7 @@ class WorkflowExecutor:
         }
         
         try:
-            eles = self.finder.find_all(selector, timeout=1)
+            eles = self.finder.find_all(selector, timeout=0.5)
             
             if not eles:
                 return result
@@ -1004,48 +1021,12 @@ class WorkflowExecutor:
             result['is_generating'] = self._generating_checker.is_generating()
         
         except Exception as e:
-            logger.debug(f"Baseline 异常: {e}")
+            logger.debug(f"Snapshot 异常: {e}")
         
         return result
 
-    def _detect_new_turn(self, baseline: dict, current: dict) -> tuple:
-        if current['groups_count'] > baseline['groups_count']:
-            return True, "元素数量增加", False
-
-        if current['groups_count'] == 0 and baseline['groups_count'] > 0:
-            return False, "元素暂时消失", True
-
-        if baseline['text_len'] > 0 and current['text_len'] > 0:
-            if current['groups_count'] == baseline['groups_count']:
-                shrink_ratio = current['text_len'] / baseline['text_len']
-                if shrink_ratio < 0.3:
-                    return False, f"内容大幅减少({shrink_ratio:.0%})", True
-
-        if baseline['anchor'] and current['anchor']:
-            if baseline['anchor'] != current['anchor']:
-                if current['groups_count'] == baseline['groups_count']:
-                    return False, "消息锚点变化", True
-
-        if current['is_generating'] and not baseline['is_generating']:
-            return True, "生成指示器激活", False
-
-        if baseline['text_len'] == 0 and current['text_len'] > 0:
-            if current['is_generating']:
-                return True, "内容出现+生成中", False
-            return False, "", False
-
-        if current['text_len'] > baseline['text_len']:
-            growth = current['text_len'] - baseline['text_len']
-
-            if current['is_generating']:
-                return True, f"内容增长({growth}字符)+生成中", False
-
-            if growth > 50:
-                return True, f"显著内容增长({growth}字符)", False
-
-        return False, "", False
-
     def _get_active_turn_text(self, selector: str) -> str:
+        """获取当前活跃轮次的文本"""
         try:
             eles = self.finder.find_all(selector, timeout=1)
             
@@ -1064,140 +1045,267 @@ class WorkflowExecutor:
             return ""
 
     def _stream_monitor(self, selector: str) -> Generator[str, None, None]:
-        """流式监听（增强取消检查）"""
-        logger.debug("流式监听启动")
+        """
+        流式监听（v4 完全重写版）
+        
+        核心策略：
+        1. 进入监控瞬间抓 instant_baseline
+        2. 等待短暂时间（让用户消息上屏）
+        3. 抓 user_baseline，对比两者：
+           - 如果 count 增加 1：用户消息已上屏，继续等 AI
+           - 如果 count 增加 2+：AI 秒回，直接进入输出
+        4. 进入正常监控阶段
+        """
+        logger.info("========== 流式监听启动 (v4) ==========")
 
         ctx = StreamContext()
         self._stream_ctx = ctx
         self._generating_checker = GeneratingStatusCache(self.tab)
 
-        # 等待初始元素
-        baseline = None
-        initial_wait_start = time.time()
-        initial_wait_max = 10
-
-        while time.time() - initial_wait_start < initial_wait_max:
+        # ===== 阶段 0：抓取 instant baseline =====
+        logger.debug("[阶段0] 抓取 instant baseline（监控启动瞬间）")
+        ctx.instant_baseline = self._get_latest_message_snapshot(selector)
+        logger.info(f"[Instant] count={ctx.instant_baseline['groups_count']}, "
+                   f"text_len={ctx.instant_baseline['text_len']}, "
+                   f"generating={ctx.instant_baseline['is_generating']}")
+        
+        # ===== 阶段 1：等待用户消息上屏 =====
+        logger.debug(f"[阶段1] 等待用户消息上屏（最多 {BrowserConstants.STREAM_USER_MSG_WAIT}s）")
+        user_msg_wait_start = time.time()
+        user_msg_wait_max = BrowserConstants.STREAM_USER_MSG_WAIT
+        
+        ctx.user_baseline = None
+        
+        while time.time() - user_msg_wait_start < user_msg_wait_max:
             if self._check_cancelled():
-                logger.info("等待初始元素时被取消")
+                logger.info("等待用户消息时被取消")
                 return
-        
-            baseline = self._get_latest_message_snapshot(selector)
-            if baseline['groups_count'] > 0:
-                break
-            time.sleep(0.2)
-
-        if baseline['groups_count'] == 0:
-            logger.debug("初始元素未出现")
-
-        ctx.baseline_snapshot = baseline
-
-        start_time = time.time()
-        silence_start = time.time()
-        last_output_time = None
-
-        current_interval = BrowserConstants.STREAM_CHECK_INTERVAL_DEFAULT
-        min_interval = BrowserConstants.STREAM_CHECK_INTERVAL_MIN
-        max_interval = BrowserConstants.STREAM_CHECK_INTERVAL_MAX
-
-        abnormal_count = 0
-        max_abnormal_count = 5
-        element_missing_count = 0
-        max_element_missing = 10
-    
-        # ★ 修复：初始化 current_text
-        current_text = ""
-
-        while True:
-            if self._check_cancelled():
-                logger.info("流式监听被取消")
-                break
-        
-            elapsed = time.time() - start_time
-        
-            # === 未进入 Active Turn ===
-            if not ctx.active_turn_started:
-                try:
-                    current = self._get_latest_message_snapshot(selector)
-                except Exception:
-                    current = {'groups_count': 0, 'anchor': None, 'text': '',
-                               'text_len': 0, 'is_generating': False}
-        
-                is_new_turn, reason, is_abnormal = self._detect_new_turn(baseline, current)
-        
-                if is_abnormal:
-                    abnormal_count += 1
             
-                    if current['groups_count'] == 0:
-                        element_missing_count += 1
-                        if element_missing_count >= max_element_missing:
-                            yield self.formatter.pack_error("页面元素丢失", code="element_lost")
-                            return
-                        time.sleep(0.3)
-                        continue
-                    else:
-                        element_missing_count = 0
+            current_snapshot = self._get_latest_message_snapshot(selector)
+            current_count = current_snapshot['groups_count']
+            instant_count = ctx.instant_baseline['groups_count']
             
-                    if abnormal_count >= max_abnormal_count:
-                        if "减少" in reason or "锚点" in reason:
-                            baseline = current
-                            ctx.baseline_snapshot = baseline
-                            abnormal_count = 0
-                    
-                            if current['text_len'] > 0 and current['is_generating']:
-                                ctx.active_turn_started = True
-                                ctx.active_turn_baseline_len = 0
-                                current_text = current['text']  # ★ 修复
-                            continue
-                        else:
-                            yield self.formatter.pack_error(f"状态异常: {reason}", code="abnormal_state")
-                            return
-                else:
-                    abnormal_count = 0
-                    element_missing_count = 0
-        
-                if is_new_turn:
+            # 情况 A：用户消息已上屏（count 增加 1）
+            if current_count == instant_count + 1:
+                logger.info(f"[User Msg] 检测到用户消息上屏 (count: {instant_count} -> {current_count})")
+                ctx.user_baseline = current_snapshot
+                ctx.user_msg_confirmed = True
+                break
+            
+            # 情况 B：AI 秒回（count 增加 2+）
+            elif current_count >= instant_count + 2:
+                logger.info(f"[Fast AI] 检测到 AI 秒回！(count: {instant_count} -> {current_count})")
+                ctx.user_baseline = current_snapshot
+                ctx.user_msg_confirmed = True
+                # 直接激活 active_turn
+                ctx.active_turn_started = True
+                ctx.active_turn_baseline_len = 0
+                break
+            
+            # 情况 C：count 没变，但文本增长了（某些网站不增加节点）
+            elif current_count == instant_count:
+                if current_snapshot['text_len'] > ctx.instant_baseline['text_len'] + 10:
+                    logger.info(f"[Same Node] 同节点检测到文本增长，可能为AI回复")
+                    ctx.user_baseline = current_snapshot
+                    ctx.user_msg_confirmed = True
                     ctx.active_turn_started = True
-                    logger.debug(f"检测到新回复 (原因: {reason})")
+                    ctx.active_turn_baseline_len = ctx.instant_baseline['text_len']
+                    break
             
+            time.sleep(0.2)
+        
+        # 如果超时还没检测到用户消息，使用 instant_baseline 作为 user_baseline
+        if ctx.user_baseline is None:
+            logger.warning("[Timeout] 未检测到用户消息上屏，使用 instant baseline")
+            ctx.user_baseline = ctx.instant_baseline
+        
+        # ===== 阶段 2：等待 AI 开始回复（如果还没开始）=====
+        if not ctx.active_turn_started:
+            logger.debug("[阶段2] 等待 AI 开始回复")
+            
+            baseline = ctx.user_baseline
+            start_time = time.time()
+            
+            while True:
+                if self._check_cancelled():
+                    logger.info("等待AI开始时被取消")
+                    return
+                
+                elapsed = time.time() - start_time
+                
+                current = self._get_latest_message_snapshot(selector)
+                
+                # 检测 AI 是否开始
+                is_started, reason = self._detect_ai_start(baseline, current)
+                
+                if is_started:
+                    logger.info(f"[AI Start] 检测到 AI 开始回复：{reason}")
+                    ctx.active_turn_started = True
+                    
+                    # 根据节点数决定 baseline 长度
                     if current['groups_count'] > baseline['groups_count']:
                         ctx.active_turn_baseline_len = 0
                     else:
-                        ctx.active_turn_baseline_len = baseline['text_len']
+                        ctx.active_turn_baseline_len = baseline.get('text_len', 0)
+                    
+                    break
                 
-                    # ★ 修复：进入 Active Turn 时设置 current_text
-                    current_text = current['text']
-                else:
-                    if elapsed > BrowserConstants.STREAM_INITIAL_WAIT:
-                        logger.debug("等待超时，未检测到新回复")
-                        break
-            
-                    time.sleep(current_interval)
-                    continue
-    
-            # === 已进入 Active Turn ===
-            else:
-                try:
-                    current_text = self._get_active_turn_text(selector)
-                    if not current_text and ctx.max_seen_text:
-                        current_text = ctx.max_seen_text
-                except Exception:
-                    current_text = ctx.max_seen_text if ctx.max_seen_text else ""
+                # 超时检查
+                if elapsed > BrowserConstants.STREAM_INITIAL_WAIT:
+                    logger.warning(f"[Timeout] 等待 AI 开始超时（{elapsed:.1f}s）")
+                    break
+                
+                time.sleep(0.3)
         
-                if not current_text and ctx.sent_content_length > 0:
-                    element_missing_count += 1
-                    if element_missing_count >= max_element_missing:
-                        break
+        # ===== 阶段 3：正常增量输出 =====
+        if ctx.active_turn_started:
+            logger.debug("[阶段3] 进入增量输出阶段")
+            yield from self._stream_output_phase(selector, ctx)
+        else:
+            logger.warning("[Exit] 未检测到 AI 回复，退出监控")
+
+    def _detect_ai_start(self, baseline: dict, current: dict) -> tuple:
+        """
+        检测 AI 是否开始回复（v4 简化版）
+        
+        返回: (is_started: bool, reason: str)
+        """
+        
+        # 优先级 1：节点数增加
+        if current['groups_count'] > baseline['groups_count']:
+            increase = current['groups_count'] - baseline['groups_count']
+            return True, f"节点数增加 {increase}"
+        
+        # 优先级 2：生成指示器出现
+        if current['is_generating']:
+            return True, "生成指示器激活"
+        
+        # 优先级 3：文本显著增长（同节点）
+        if current['text_len'] > baseline['text_len'] + 10:
+            growth = current['text_len'] - baseline['text_len']
+            return True, f"文本增长 {growth} 字符"
+        
+        return False, ""
+
+    def _stream_output_phase(self, selector: str, ctx: StreamContext) -> Generator[str, None, None]:
+        """
+        增量输出阶段（v4.2 优化版）
+    
+        核心改进：
+        - 检测新节点出现时自动切换输出目标
+        - 支持"思考 -> 最终答复"模式（节点数增加）
+        - 支持"同节点内折叠思考"模式（文本突然变短）
+        """
+    
+        silence_start = time.time()
+        last_output_time = None
+    
+        current_interval = BrowserConstants.STREAM_CHECK_INTERVAL_DEFAULT
+        min_interval = BrowserConstants.STREAM_CHECK_INTERVAL_MIN
+        max_interval = BrowserConstants.STREAM_CHECK_INTERVAL_MAX
+    
+        element_missing_count = 0
+        max_element_missing = 10
+    
+        current_text = ""
+        last_text_len = 0
+    
+        # v4.1：记录初始节点数和锚点
+        initial_snap = self._get_last_message_snapshot(selector)
+        ctx.output_target_count = initial_snap['groups_count']
+        ctx.output_target_anchor = initial_snap['anchor']
+        logger.debug(f"[Output] 初始目标: count={ctx.output_target_count}, anchor={ctx.output_target_anchor}")
+    
+        # v4.2 新增：记录峰值文本长度，用于检测"折叠"
+        peak_text_len = 0
+        content_shrink_count = 0
+    
+        while True:
+            if self._check_cancelled():
+                logger.info("输出阶段被取消")
+                break
+        
+            # v4.1：读取最后节点快照
+            snap = self._get_last_message_snapshot(selector)
+            current_count = snap['groups_count']
+            current_anchor = snap['anchor']
+            current_text = snap['text'] or ""
+            still_generating = snap['is_generating']
+            current_text_len = len(current_text)
+        
+            # ===== v4.2 新增：检测"同节点内折叠"（文本突然大幅变短）=====
+            if current_text_len > peak_text_len:
+                peak_text_len = current_text_len
+                content_shrink_count = 0
+            elif peak_text_len > 100 and current_text_len < peak_text_len * 0.5:
+                # 文本长度下降超过 50%，可能是思考被折叠了
+                content_shrink_count += 1
+                if content_shrink_count >= 2:  # 连续 2 次确认
+                    logger.info(f"[Collapse] 检测到内容折叠：{peak_text_len} -> {current_text_len}，重置输出状态")
+                    # 重置状态，把当前内容当作新的起点
+                    ctx.reset_for_new_target()
+                    peak_text_len = current_text_len
+                    content_shrink_count = 0
+                    silence_start = time.time()
+                    last_output_time = None
+                    last_text_len = current_text_len
+                    # 不要继续处理这一轮，等下一轮
                     time.sleep(0.2)
                     continue
-                else:
-                    element_missing_count = 0
-    
-            # === 计算增量 ===
-            if current_text and len(current_text) > len(ctx.max_seen_text):
+            else:
+                content_shrink_count = 0
+        
+            # ===== v4.1：检测是否出现新节点（思考 -> 最终答复切换）=====
+            if current_count > ctx.output_target_count:
+                if current_anchor != ctx.output_target_anchor:
+                    if ctx.pending_new_anchor == current_anchor:
+                        ctx.pending_new_anchor_seen += 1
+                    else:
+                        ctx.pending_new_anchor = current_anchor
+                        ctx.pending_new_anchor_seen = 1
+                
+                    if ctx.pending_new_anchor_seen >= 2:
+                        logger.info(f"[Switch] 检测到新节点出现，切换输出目标: "
+                                   f"count {ctx.output_target_count} -> {current_count}, "
+                                   f"anchor {ctx.output_target_anchor} -> {current_anchor}")
+                    
+                        ctx.output_target_count = current_count
+                        ctx.output_target_anchor = current_anchor
+                        ctx.pending_new_anchor = None
+                        ctx.pending_new_anchor_seen = 0
+                    
+                        ctx.reset_for_new_target()
+                        peak_text_len = 0  # v4.2：重置峰值
+                        silence_start = time.time()
+                        last_output_time = None
+                        last_text_len = 0
+                    
+                        if not current_text:
+                            time.sleep(0.2)
+                            continue
+            else:
+                ctx.pending_new_anchor = None
+                ctx.pending_new_anchor_seen = 0
+        
+            # ===== 处理空文本 =====
+            if not current_text:
+                if ctx.sent_content_length > 0:
+                    element_missing_count += 1
+                    if element_missing_count >= max_element_missing:
+                        logger.warning("元素持续丢失，退出监控")
+                        break
+                time.sleep(0.2)
+                continue
+            else:
+                element_missing_count = 0
+        
+            # 更新最大文本
+            if len(current_text) > len(ctx.max_seen_text):
                 ctx.max_seen_text = current_text
-    
+        
+            # 计算增量
             diff, needs_resync, resync_reason = ctx.calculate_diff(current_text)
-    
+        
             if diff:
                 if self._check_cancelled():
                     logger.info("发送增量前被取消")
@@ -1208,7 +1316,10 @@ class WorkflowExecutor:
                 if last_output_time is None:
                     last_output_time = time.time()
                 current_interval = min_interval
-        
+            
+                ctx.content_ever_changed = True
+            
+                logger.debug(f"[Output] 发送增量: {len(diff)} 字符")
                 yield self.formatter.pack_chunk(diff)
             else:
                 if current_text == ctx.last_stable_text:
@@ -1216,28 +1327,33 @@ class WorkflowExecutor:
                 else:
                     ctx.stable_text_count = 0
                     ctx.last_stable_text = current_text
-        
+            
                 current_interval = min(current_interval * 1.5, max_interval)
-    
+        
+            # 检测内容长度变化
+            if current_text_len != last_text_len:
+                ctx.content_ever_changed = True
+                last_text_len = current_text_len
+        
             silence_duration = time.time() - silence_start
-            still_generating = self._generating_checker.is_generating()
-    
-            # === 结束判定 ===
-            if last_output_time is not None:
+        
+            # ===== 退出判定 =====
+            if ctx.content_ever_changed:
                 if not still_generating:
                     if silence_duration > BrowserConstants.STREAM_SILENCE_THRESHOLD:
-                        logger.debug("生成结束 (指示器消失 + 静默)")
+                        logger.info(f"[Exit] 生成结束（指示器消失 + {silence_duration:.1f}s 静默）")
                         break
                 else:
                     if (ctx.stable_text_count >= BrowserConstants.STREAM_STABLE_COUNT_THRESHOLD and
                         silence_duration > BrowserConstants.STREAM_SILENCE_THRESHOLD_FALLBACK):
-                        logger.debug("生成结束 (稳定 + 静默)")
+                        logger.info(f"[Exit] 生成结束（内容稳定 + {silence_duration:.1f}s 静默）")
                         break
-    
-            if elapsed > BrowserConstants.STREAM_MAX_TIMEOUT:
-                logger.debug("超时退出")
-                break
-    
+            else:
+                if not still_generating and last_output_time is None:
+                    if current_text_len > ctx.active_turn_baseline_len + 5:
+                        logger.info("[Exit] 检测到快速回复（无增量但有最终内容）")
+                        break
+        
             # 分段 sleep
             sleep_elapsed = 0
             while sleep_elapsed < current_interval:
@@ -1245,35 +1361,144 @@ class WorkflowExecutor:
                     break
                 time.sleep(min(0.1, current_interval - sleep_elapsed))
                 sleep_elapsed += 0.1
-
-        # === 最终读取 ===
+    
+        # v4.1：最终读取（带 settle）
         if not self._check_cancelled():
-            try:
-                final_text = self._get_active_turn_text(selector)
-                if final_text:
-                    final_effective_start = ctx.active_turn_baseline_len + ctx.sent_content_length
-                    if len(final_text) > final_effective_start:
-                        remaining = final_text[final_effective_start:]
-                        if remaining.strip():
-                            yield self.formatter.pack_chunk(remaining)
-                            ctx.sent_content_length += len(remaining)
+            yield from self._final_settle_and_output(selector, ctx)
+
+
+    def _final_settle_and_output(self, selector: str, ctx: StreamContext) -> Generator[str, None, None]:
+        """
+        最终稳定读取（v4.1 新增）
+    
+        在生成结束后等待一小段时间，确保：
+        1. 如果有新节点出现（第三节点），切换并输出它
+        2. 最后节点的内容已经完全渲染
+        """
+        settle_time = 1.5  # settle 窗口
+        hardcap = 5.0      # 硬上限
+    
+        start = time.time()
+        stable_start = time.time()
+        last_snap = self._get_last_message_snapshot(selector)
+    
+        logger.debug(f"[Settle] 开始最终稳定等待，当前 count={last_snap['groups_count']}")
+    
+        while True:
+            if self._check_cancelled():
+                break
         
-                    self._final_complete_text = final_text[ctx.active_turn_baseline_len:]
-                else:
-                    self._final_complete_text = ctx.max_seen_text[ctx.active_turn_baseline_len:] if ctx.max_seen_text else ""
-            except Exception:
+            now = time.time()
+            if now - start > hardcap:
+                break
+        
+            if now - stable_start >= settle_time:
+                break
+        
+            time.sleep(0.15)
+            snap = self._get_last_message_snapshot(selector)
+        
+            # 检测是否有新节点或内容变化
+            changed = False
+        
+            if snap['groups_count'] > last_snap['groups_count']:
+                logger.info(f"[Settle] 检测到新节点: count {last_snap['groups_count']} -> {snap['groups_count']}")
+                changed = True
+                # 新节点出现，切换目标
+                if snap['anchor'] != ctx.output_target_anchor:
+                    logger.info(f"[Settle] 切换到新节点: {snap['anchor']}")
+                    ctx.output_target_anchor = snap['anchor']
+                    ctx.output_target_count = snap['groups_count']
+                    ctx.reset_for_new_target()
+        
+            if snap['text_len'] != last_snap['text_len']:
+                changed = True
+        
+            if snap['anchor'] != last_snap['anchor']:
+                changed = True
+        
+            if changed:
+                stable_start = time.time()
+        
+            last_snap = snap
+    
+        # 读取最终内容
+        final_snap = self._get_last_message_snapshot(selector)
+        final_text = final_snap.get('text', "") or ""
+    
+        logger.debug(f"[Settle] 最终快照: count={final_snap['groups_count']}, text_len={len(final_text)}")
+    
+        # 计算未发送的剩余内容
+        if final_text:
+            final_effective_start = ctx.active_turn_baseline_len + ctx.sent_content_length
+            if len(final_text) > final_effective_start:
+                remaining = final_text[final_effective_start:]
+                if remaining.strip():
+                    logger.debug(f"[Final] 发送剩余内容: {len(remaining)} 字符")
+                    yield self.formatter.pack_chunk(remaining)
+                    ctx.sent_content_length += len(remaining)
+        
+            self._final_complete_text = final_text[ctx.active_turn_baseline_len:]
+        else:
+            # 如果最后节点为空，尝试回退到最后一个非空节点
+            fallback_text = self._get_active_turn_text(selector)
+            if fallback_text:
+                final_effective_start = ctx.active_turn_baseline_len + ctx.sent_content_length
+                if len(fallback_text) > final_effective_start:
+                    remaining = fallback_text[final_effective_start:]
+                    if remaining.strip():
+                        logger.debug(f"[Final Fallback] 发送剩余内容: {len(remaining)} 字符")
+                        yield self.formatter.pack_chunk(remaining)
+                        ctx.sent_content_length += len(remaining)
+            
+                self._final_complete_text = fallback_text[ctx.active_turn_baseline_len:]
+            else:
                 self._final_complete_text = ctx.max_seen_text[ctx.active_turn_baseline_len:] if ctx.max_seen_text else ""
+    
+        logger.info(f"========== 流式监听结束，总输出: {ctx.sent_content_length} 字符 ==========")
+
+
+    def _get_last_message_snapshot(self, selector: str) -> dict:
+        """
+        获取最后一个消息节点的快照（v4.1 新增）
+    
+        与 _get_latest_message_snapshot 不同：这里永远取 eles[-1]，即使它是空的
+        """
+        result = {
+            'groups_count': 0,
+            'anchor': None,
+            'text': '',
+            'text_len': 0,
+            'is_generating': False,
+        }
+    
+        try:
+            eles = self.finder.find_all(selector, timeout=0.5)
+        
+            if not eles:
+                return result
+        
+            result['groups_count'] = len(eles)
+        
+            last_ele = eles[-1]
+            result['text'] = self._read_visible_text(last_ele) or ""
+            result['text_len'] = len(result['text'])
+            result['anchor'] = self._get_message_anchor(last_ele)
+        
+            if self._generating_checker is None:
+                self._generating_checker = GeneratingStatusCache(self.tab)
+            result['is_generating'] = self._generating_checker.is_generating()
+    
+        except Exception as e:
+            logger.debug(f"Last snapshot 异常: {e}")
+    
+        return result
+
 
 # ================= 浏览器核心 =================
 
 class BrowserCore:
-    """
-    浏览器核心类 - 单例模式
-    
-    重构说明：
-    - 移除内部锁管理，由 RequestManager 统一控制
-    - 接收外部的取消信号检查器
-    """
+    """浏览器核心类 - 单例模式"""
     
     _instance: Optional['BrowserCore'] = None
     _lock = threading.Lock()
@@ -1308,11 +1533,7 @@ class BrowserCore:
         self._initialized = True
     
     def set_stop_checker(self, checker: Callable[[], bool]):
-        """
-        设置停止检查器
-        
-        由 main.py 在执行前设置，通常是 RequestContext.should_stop
-        """
+        """设置停止检查器"""
         self._should_stop_checker = checker or (lambda: False)
     
     @property
@@ -1390,13 +1611,8 @@ class BrowserCore:
     
     def execute_workflow(self, messages: List[Dict],
                          stream: bool = True) -> Generator[str, None, None]:
-        """
-        工作流执行入口
+        """工作流执行入口"""
         
-        注意：
-        - 锁的获取/释放由调用方（main.py）通过 RequestManager 管理
-        - 取消检查器需要提前通过 set_stop_checker 设置
-        """
         # 验证输入
         is_valid, error_msg, sanitized_messages = MessageValidator.validate(messages)
         
@@ -1417,7 +1633,6 @@ class BrowserCore:
     def _execute_workflow_stream(self, messages: List[Dict]) -> Generator[str, None, None]:
         """流式工作流执行"""
         
-        # 检查取消
         if self._should_stop_checker():
             yield self.formatter.pack_error("请求已取消", code="cancelled")
             yield self.formatter.pack_finish()
@@ -1478,7 +1693,7 @@ class BrowserCore:
             ])
         }
         
-        # 创建执行器，传入取消检查器
+        # 创建执行器
         executor = WorkflowExecutor(
             tab, 
             self.stealth_mode,
@@ -1487,7 +1702,6 @@ class BrowserCore:
         
         try:
             for step in workflow:
-                # 每步前检查取消
                 if self._should_stop_checker():
                     logger.info("工作流被用户中断")
                     break
